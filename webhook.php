@@ -1,15 +1,38 @@
 <?php
-// 1. Capturamos la informacion cruda que nos estan enviando
+// 1. Conexión a tu base de datos local (Usuario por defecto en XAMPP es "root" sin contraseña)
+$conexion = new mysqli("localhost", "root", "", "glpi_local");
+
+// Verificar si hay error al conectar
+if ($conexion->connect_error) {
+    die("Error de conexión a la base de datos: " . $conexion->connect_error);
+}
+
+// 2. Capturar los datos JSON que envía Postman (o WhatsApp en el futuro)
 $datos_crudos = file_get_contents('php://input');
 
-//2. Verificamos si realmente enviaron algo
-if($datos_crudos){
-    //3. Guardamos esos datos en un archivo de texto para poder leerlos (esto es clave para QA y debugging)
-    file_put_contents('log_mensajes.txt',$datos_crudos .PHP_EOL, FILE_APPEND);
-    //4. Respondemos al sistema que envio el mensaje(Postman o Whatsapp)
-    echo "Exito: Los datos fueron recibidos y guardados.";
+// Transformar ese texto JSON en un formato que PHP entienda (un Array)
+$datos_json = json_decode($datos_crudos, true);
 
-}else {
-    echo "El servidor funciona, pero no enviaste ningun dato.";
+// 3. Verificar que sí llegaron datos válidos
+if ($datos_json) {
+    // Extraemos cada dato y lo guardamos en una variable
+    $cliente = $datos_json['cliente'];
+    $equipo = $datos_json['equipo'];
+    $falla = $datos_json['falla'];
+
+    // 4. Instrucción SQL para guardar la información en tu tabla
+    $sql = "INSERT INTO tickets (cliente, equipo, falla) VALUES ('$cliente', '$equipo', '$falla')";
+
+    // Ejecutamos la instrucción y verificamos si funcionó
+    if ($conexion->query($sql) === TRUE) {
+        echo "Éxito: El ticket de $cliente fue creado en MySQL.";
+    } else {
+        echo "Error al guardar en la base de datos: " . $conexion->error;
+    }
+} else {
+    echo "El servidor funciona, pero no enviaste datos JSON válidos.";
 }
+
+// Cerramos la conexión
+$conexion->close();
 ?>
